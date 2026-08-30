@@ -16,7 +16,6 @@ DB_PASS = os.getenv("DB_PASS")                # no default — must come from .e
 
 app = FastAPI(title="Task Tracker Api")
 
-
 class Task(BaseModel):
     name: str
     description: str = ""
