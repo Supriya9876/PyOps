@@ -8,16 +8,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_HOST = os.getenv("DB_HOST", "localhost")   # safe to default — not a secret
-DB_PORT = os.getenv("DB_PORT", "5432")        # safe to default — not a secret
-DB_NAME = os.getenv("DB_NAME")                # no default — must come from .env
-DB_USER = os.getenv("DB_USER")                # no default — must come from .env
-DB_PASS = os.getenv("DB_PASS")                # no default — must come from .env
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASS = os.getenv("DB_PASS")
 
-app = FastAPI(title="Task Tracker Api")
+if not all([DB_NAME, DB_USER, DB_PASS]):
+    raise RuntimeError("Missing required DB env vars. Did you create a .env / Secret?")
+
+app = FastAPI(title="Task Tracker API")
+
 
 class Task(BaseModel):
-    name: str
+    title: str
     description: str = ""
 
 
@@ -107,14 +111,14 @@ def complete_task(task_id: int):
     return row
 
 
-# @app.delete("/tasks/{task_id}")
-# def delete_task(task_id: int):
-#     conn = get_conn()
-#     with conn.cursor() as cur:
-#         cur.execute("DELETE FROM tasks WHERE id = %s RETURNING id;", (task_id,))
-#         deleted = cur.fetchone()
-#     conn.commit()
-#     conn.close()
-#     if not deleted:
-#         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-#     return {"message": f"task {task_id} deleted"}
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: int):
+    conn = get_conn()
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM tasks WHERE id = %s RETURNING id;", (task_id,))
+        deleted = cur.fetchone()
+    conn.commit()
+    conn.close()
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    return {"message": f"task {task_id} deleted"}
