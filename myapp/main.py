@@ -17,11 +17,10 @@ DB_PASS = os.getenv("DB_PASS")
 if not all([DB_NAME, DB_USER, DB_PASS]):
     raise RuntimeError("Missing required DB env vars. Did you create a .env / Secret?")
 
-app = FastAPI(title="Task Tracker API")
+app = FastAPI(title="Minimal Infra Demo Api")
 
-
-class Task(BaseModel):
-    title: str
+class Item(BaseModel):
+    name: str
     description: str = ""
 
 
@@ -40,11 +39,10 @@ def init_db(retries: int = 10, delay: int = 3):
             conn = get_conn()
             with conn.cursor() as cur:
                 cur.execute("""
-                    CREATE TABLE IF NOT EXISTS tasks (
+                    CREATE TABLE IF NOT EXISTS items (
                         id SERIAL PRIMARY KEY,
-                        title TEXT NOT NULL,
-                        description TEXT,
-                        completed BOOLEAN NOT NULL DEFAULT FALSE
+                        name TEXT NOT NULL,
+                        description TEXT
                     );
                 """)
             conn.commit()
@@ -71,13 +69,13 @@ def health():
         raise HTTPException(status_code=503, detail=f"db unreachable: {e}")
 
 
-@app.post("/tasks")
-def create_task(task: Task):
+@app.post("/items")
+def create_item(item: Item):
     conn = get_conn()
     with conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO tasks (title, description) VALUES (%s, %s) RETURNING id, title, description, completed;",
-            (task.title, task.description),
+            "INSERT INTO items (name, description) VALUES (%s, %s) RETURNING id, name, description;",
+            (item.name, item.description),
         )
         row = cur.fetchone()
     conn.commit()
@@ -85,40 +83,24 @@ def create_task(task: Task):
     return row
 
 
-@app.get("/tasks")
-def list_tasks():
+@app.get("/items")
+def list_items():
     conn = get_conn()
     with conn.cursor() as cur:
-        cur.execute("SELECT id, title, description, completed FROM tasks ORDER BY id;")
+        cur.execute("SELECT id, name, description FROM items ORDER BY id;")
         rows = cur.fetchall()
     conn.close()
     return rows
 
 
-@app.patch("/tasks/{task_id}/complete")
-def complete_task(task_id: int):
+@app.delete("/items/{item_id}")
+def delete_item(item_id: int):
     conn = get_conn()
     with conn.cursor() as cur:
-        cur.execute(
-            "UPDATE tasks SET completed = TRUE WHERE id = %s RETURNING id, title, description, completed;",
-            (task_id,),
-        )
-        row = cur.fetchone()
-    conn.commit()
-    conn.close()
-    if not row:
-        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-    return row
-
-
-@app.delete("/tasks/{task_id}")
-def delete_task(task_id: int):
-    conn = get_conn()
-    with conn.cursor() as cur:
-        cur.execute("DELETE FROM tasks WHERE id = %s RETURNING id;", (task_id,))
+        cur.execute("DELETE FROM items WHERE id = %s RETURNING id;", (item_id,))
         deleted = cur.fetchone()
     conn.commit()
     conn.close()
     if not deleted:
-        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-    return {"message": f"task {task_id} deleted"}
+        raise HTTPException(status_code=404, detail=f"Item {item_id} not found")
+    return {"message": f"item {item_id} deleted"}
