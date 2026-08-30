@@ -14,7 +14,7 @@ DB_NAME = os.getenv("DB_NAME")                # no default — must come from .e
 DB_USER = os.getenv("DB_USER")                # no default — must come from .env
 DB_PASS = os.getenv("DB_PASS")                # no default — must come from .env
 
-app = FastAPI(title="Minimal Infra Demo API")
+app = FastAPI(title="Task Tracker Api")
 
 
 class Item(BaseModel):
@@ -67,13 +67,13 @@ def health():
         raise HTTPException(status_code=503, detail=f"db unreachable: {e}")
 
 
-@app.post("/items")
-def create_item(item: Item):
+@app.post("/tasks")
+def create_task(task: Task):
     conn = get_conn()
     with conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO items (name, description) VALUES (%s, %s) RETURNING id, name, description;",
-            (item.name, item.description),
+            "INSERT INTO tasks (title, description) VALUES (%s, %s) RETURNING id, title, description, completed;",
+            (task.title, task.description),
         )
         row = cur.fetchone()
     conn.commit()
@@ -81,23 +81,40 @@ def create_item(item: Item):
     return row
 
 
-@app.get("/items")
-def list_items():
+@app.get("/tasks")
+def list_tasks():
     conn = get_conn()
     with conn.cursor() as cur:
-        cur.execute("SELECT id, name, description FROM items ORDER BY id;")
+        cur.execute("SELECT id, title, description, completed FROM tasks ORDER BY id;")
         rows = cur.fetchall()
     conn.close()
     return rows
 
-#@app.delete("/items/{item_id}")
-# def delete_item(item_id: int):
+
+@app.patch("/tasks/{task_id}/complete")
+def complete_task(task_id: int):
+    conn = get_conn()
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE tasks SET completed = TRUE WHERE id = %s RETURNING id, title, description, completed;",
+            (task_id,),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    return row
+
+
+# @app.delete("/tasks/{task_id}")
+# def delete_task(task_id: int):
 #     conn = get_conn()
 #     with conn.cursor() as cur:
-#         cur.execute("DELETE FROM items WHERE id = %s RETURNING id;", (item_id,))
+#         cur.execute("DELETE FROM tasks WHERE id = %s RETURNING id;", (task_id,))
 #         deleted = cur.fetchone()
 #     conn.commit()
 #     conn.close()
 #     if not deleted:
-#         raise HTTPException(status_code=404, detail=f"Item {item_id} not found")
-#     return {"message": f"item {item_id} deleted"}
+#         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+#     return {"message": f"task {task_id} deleted"}
