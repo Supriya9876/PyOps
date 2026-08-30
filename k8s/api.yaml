@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pyops-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pyops-api
+  template:
+    metadata:
+      labels:
+        app: pyops-api
+    spec:
+      containers:
+        - name: pyops-api
+          image: sb346/pyops:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DB_HOST
+              value: postgres-service
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_PASS
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pyops-api-service
+spec:
+  type: NodePort
+  selector:
+    app: pyops-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30080

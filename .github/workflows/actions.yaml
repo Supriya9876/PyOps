@@ -1,0 +1,80 @@
+name: CI/CD - Build, Push, and Deploy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "app/**"
+      - "k8s/**"
+      - ".github/workflows/actions.yml"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}   # this is how the tag travels to the next job
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate image tag from commit SHA
+        id: meta
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Kubernetes manifests
+        run: |
+          pip install pyyaml
+          python -c "
+          import yaml, glob
+          for f in glob.glob('k8s/*.yaml'):
+              with open(f) as file:
+                  list(yaml.safe_load_all(file))
+                  print(f'OK: {f}')
+          "
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/pyops:${{ steps.meta.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/pyops:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/secret.yaml
+          kubectl apply -f k8s/postgres.yaml
+          kubectl apply -f k8s/api.yaml
+
+      - name: Deploy new image
+        run: |
+          kubectl set image deployment/pyops-api pyops-api=${{ secrets.DOCKERHUB_USERNAME }}/pyops:${{ needs.build-and-push.outputs.image_tag }}
+
+      - name: Wait for rollout to complete
+        run: kubectl rollout status deployment/pyops-api --timeout=120s
+
+      - name: Roll back on failure
+        if: failure()
+        run: |
+          echo "Deployment failed health check — rolling back to previous version"
+          kubectl rollout undo deployment/pyops-api
+
+      - name: Show final pod status
+        if: always()
+        run: kubectl get pods -o wide
