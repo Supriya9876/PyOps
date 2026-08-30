@@ -17,7 +17,7 @@ DB_PASS = os.getenv("DB_PASS")                # no default — must come from .e
 app = FastAPI(title="Task Tracker Api")
 
 
-class Item(BaseModel):
+class Task(BaseModel):
     name: str
     description: str = ""
 
@@ -37,10 +37,11 @@ def init_db(retries: int = 10, delay: int = 3):
             conn = get_conn()
             with conn.cursor() as cur:
                 cur.execute("""
-                    CREATE TABLE IF NOT EXISTS items (
+                    CREATE TABLE IF NOT EXISTS tasks (
                         id SERIAL PRIMARY KEY,
-                        name TEXT NOT NULL,
-                        description TEXT
+                        title TEXT NOT NULL,
+                        description TEXT,
+                        completed BOOLEAN NOT NULL DEFAULT FALSE
                     );
                 """)
             conn.commit()
