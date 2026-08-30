@@ -77,3 +77,14 @@ jobs:
       - name: Show final pod status
         if: always()
         run: kubectl get pods -o wide
+
+      - name: Show service access info
+        if: always()
+        run: |
+          echo "=== Services ==="
+          kubectl get svc -o wide
+          echo ""
+          echo "=== How to reach the API ==="
+          echo "Run this locally to access the app:"
+          echo "  kubectl port-forward service/pyops-api-service 8000:8000"
+          echo "Then open: http://localhost:8000/health"
