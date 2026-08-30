@@ -41,7 +41,7 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
-          context: ./myapp
+          context: .
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/pyops:${{ steps.meta.outputs.tag }}
