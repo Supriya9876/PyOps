@@ -6,7 +6,7 @@ on:
     paths:
       - "app/**"
       - "k8s/**"
-      - ".github/workflows/actions.yml"
+      - ".github/workflows/actions.yaml"
 
 jobs:
   build-and-push:
@@ -47,7 +47,7 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/pyops:${{ steps.meta.outputs.tag }}
             ${{ secrets.DOCKERHUB_USERNAME }}/pyops:latest
   
-  
+
   deploy:
     needs: build-and-push
     runs-on: self-hosted
