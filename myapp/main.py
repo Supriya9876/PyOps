@@ -111,14 +111,14 @@ def complete_task(task_id: int):
     return row
 
 
-@app.delete("/tasks/{task_id}")
-def delete_task(task_id: int):
-    conn = get_conn()
-    with conn.cursor() as cur:
-        cur.execute("DELETE FROM tasks WHERE id = %s RETURNING id;", (task_id,))
-        deleted = cur.fetchone()
-    conn.commit()
-    conn.close()
-    if not deleted:
-        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-    return {"message": f"task {task_id} deleted"}
+# @app.delete("/tasks/{task_id}")
+# def delete_task(task_id: int):
+#     conn = get_conn()
+#     with conn.cursor() as cur:
+#         cur.execute("DELETE FROM tasks WHERE id = %s RETURNING id;", (task_id,))
+#         deleted = cur.fetchone()
+#     conn.commit()
+#     conn.close()
+#     if not deleted:
+#         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+#     return {"message": f"task {task_id} deleted"}
